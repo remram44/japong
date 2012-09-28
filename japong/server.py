@@ -1,13 +1,12 @@
 import logging
-import os
 
-from twisted.internet import protocol, reactor
+from twisted.internet import protocol
 
 from japong.http import Http, HttpError
 from japong.websocket import setup_websocket
 
 
-class PongProto(protocol.Protocol):
+class HttpProto(protocol.Protocol):
     def __init__(self, factory, host):
         self.factory = factory
         self.http = Http(host)
@@ -40,6 +39,8 @@ class PongProto(protocol.Protocol):
             response = self.factory.get_response(self.http)
         except:
             self.http.send_error(status=500, sender=self.transport.write)
+            import sys, traceback
+            traceback.print_exc(sys.stderr)
         else:
             if response is None:
                 self.http.send_error(status=404, sender=self.transport.write)
@@ -95,66 +96,19 @@ class WebsocketResponse(Response):
         self.websocket.init(sender)
 
     def dataReceived(self, data):
-        msg = self.websocket.dataReceived(data)
-
-        if msg.is_text:
-            logging.debug("A client sent text %r" % str(msg.data))
-        else:
-            logging.debug("A client sent binary %r" %
-                          str(msg.data).encode('hex'))
-
-        # Just send it back
-        self.websocket.send(msg)
+        self.msgReceived(self.websocket.dataReceived(data))
 
     def connectionLost(self):
         pass
 
 
-FILE_ALIASES = {
-        '': 'index.html'}
-STATIC_FILES = {
-        'index.html': 'text/html',
-        'favicon.ico': 'image/x-icon'}
-TEMPLATE_FILES = set()
-
-
-class PongFactory(protocol.Factory):
-    def __init__(self, host):
+class HttpFactory(protocol.Factory):
+    def __init__(self, host, handler):
         self.host = host
+        self.handler = handler
 
     def buildProtocol(self, addr):
-        return PongProto(self, self.host)
+        return HttpProto(self, self.host)
 
     def get_response(self, http):
-        request = http.request_uri[1:]
-        request = FILE_ALIASES.get(request, request)
-        if request in STATIC_FILES:
-            logging.info("static file %s requested" % request)
-            return FileResponse(
-                    file=open(os.path.join('japong', 'site', request)),
-                    mime=STATIC_FILES[request])
-        elif request == 'conn':
-            logging.info("'conn' requested! initiating websocket")
-            return WebsocketResponse(http)
-        logging.info("no match for request %s" % request)
-        return None
-
-
-def run(port, host, verbosity):
-    if verbosity == 0: # -q
-        level = logging.CRITICAL
-    elif verbosity == 1: # default
-        level = logging.WARNING
-    elif verbosity == 2: # -v
-        level = logging.INFO
-    else: # -v -v
-        level = logging.DEBUG
-    logging.basicConfig(level=level)
-
-    if not host:
-        host = "http://127.0.0.1"
-    if port != 80 and not ':' in host:
-        host += ":%d" % port
-
-    reactor.listenTCP(port, PongFactory(host))
-    reactor.run()
+        return self.handler.get_response(http)
