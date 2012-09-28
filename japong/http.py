@@ -140,6 +140,8 @@ class Http(object):
         
     def send_page(self, page, sender, status=200, mime='text/html'):
         self._send_headers(sender, status, mime)
+        if isinstance(page, unicode):
+            page = page.encode('utf-8')
         sender(page)
 
     def send_file(self, file, sender, status=200, mime='text/html'):

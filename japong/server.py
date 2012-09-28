@@ -54,7 +54,7 @@ class HttpProto(protocol.Protocol):
                 self.transport.loseConnection()
             elif isinstance(response, TemplateResponse):
                 self.http.send_page(
-                        reponse.template % response.vars,
+                        response.template.render(**response.vars),
                         mime=response.mime,
                         sender=self.transport.write)
                 self.transport.loseConnection()

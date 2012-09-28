@@ -1,18 +1,24 @@
 import logging
 import os
 
-from japong.server import FileResponse, WebsocketResponse
+from jinja2 import Environment, PackageLoader
+
+from japong.server import FileResponse, TemplateResponse, WebsocketResponse
 
 
 FILE_ALIASES = {
         '': 'index.html'}
 STATIC_FILES = {
-        'index.html': 'text/html',
+        'style.css': 'text/css',
+        'pong.js': 'text/javascript',
         'favicon.ico': 'image/x-icon'}
-TEMPLATE_FILES = set()
+TEMPLATE_FILES = set(['index.html'])
 
 
 class PongGame(object):
+    def __init__(self):
+        self.tpl_env = Environment(loader=PackageLoader('japong', 'site'))
+
     def get_response(self, http):
         request = http.request_uri[1:]
         request = FILE_ALIASES.get(request, request)
@@ -21,6 +27,11 @@ class PongGame(object):
             return FileResponse(
                     file=open(os.path.join('japong', 'site', request)),
                     mime=STATIC_FILES[request])
+        elif request in TEMPLATE_FILES:
+            logging.info("template file %s requested" % request)
+            return TemplateResponse(
+                    template=self.tpl_env.get_template(request),
+                    vars=dict(scripts=['/pong.js']))
         elif request == 'conn':
             logging.info("'conn' requested! initiating websocket")
             return PongWebsocketResponse(http)

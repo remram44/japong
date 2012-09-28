@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ self.title() }}</title>
+  <link rel="stylesheet" type="text/css" href="/style.css"/>
+  {% for script in scripts %}
+  <script type="text/javascript" src="{{ script }}"></script>
+  {% endfor %}
+</head>
+<body>
+  <div id="wrap">
+    <div id="header">
+      <h1>{% block title %}JaPong{% endblock %}</h1>
+    </div>
+
+    {% block content %}{% endblock %}
+
+    <div id="footer">
+      <p><a href="https://github.com/remram44/japong">JaPong</a> is a Pong written in JavaScript and Python. It uses websockets for real-time networking, with <a href="https://github.com/Lawouach/WebSocket-for-Python">ws4py</a>.</p>
+    </div>
+  </div>
+</body>
+</html>

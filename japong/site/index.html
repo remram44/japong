@@ -1,32 +1,17 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>django-websocket</title>
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.1/jquery.min.js"></script>
-    <script type="text/javascript">//<![CDATA[
-    $(function () {
-        var s = new WebSocket('ws://127.0.0.1:8000/conn');
-        s.onopen = function () {
-            console.log('WebSocket open');
-        };
-        s.onmessage = function (e) {
-            console.log('message: ' + e.data);
-            $('#messagecontainer').append('<p>' + e.data + '</p>');
-        };
-        window.s = s;
+{% extends "base.html" %}
 
-        $('#send_message').click(function () {
-            s.send($('#message').val());
-        });
-    });
-    //]]></script>
-</head>
-<body>
-<input type="text" id="message" value="Hello, World!" />
-<button type="button" id="send_message">Send message</button>
-<h1>Received Messages</h1>
-<div id="messagecontainer">
-
+{% block content %}
+<div id="game">
+  <h2>Game here</h2>
 </div>
-</body>
-</html>
+
+<div id="msgbox">
+  <div id="game-log"></div>
+  <div id="send-box">
+    <p>
+      <input type="text" id="message"/>
+      <button type="button" id="send_message" autocomplete="off">Send</button>
+    </p>
+  </div>
+</div>
+{% endblock %}

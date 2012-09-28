@@ -1,0 +1,56 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  color: #000;
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+a:hover, a:active {
+  color: red;
+  text-decoration: none;
+}
+
+#wrap {
+  width: 800px;
+  margin: 0 auto;
+}
+
+#header {
+  margin-bottom: 10px;
+  padding: 10px;
+  background: #9CC;
+}
+
+#game {
+  float: left;
+  margin-bottom: 10px;
+  padding: 10px;
+  width: 580px;
+  background: #9C9;
+}
+
+#msgbox {
+  float: right;
+  margin-left: 10px;
+  margin-bottom: 10px;
+  padding: 10px;
+  width: 170px;
+  background: #C9C;
+}
+
+#footer {
+  clear: both;
+  margin-top: 10px;
+  margin-bottom: 100px;
+  padding: 10px;
+  color: grey;
+}
+
+#game-log {
+  height: 300px;
+  overflow-y: auto;
+}
