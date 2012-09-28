@@ -65,6 +65,7 @@ addEvent('load', window, function() {
     };
     sock.onclose = function(e) {
         window.log('error', "!! Disconnected");
+        window.stop_animating = true;
     };
     sock.onerror = function(e) {
         window.log('error', "!! Error: " + e.data);
@@ -160,7 +161,10 @@ addEvent('load', window, function() {
     /*
      * Main loop.
      */
+    window.stop_animating = false;
     window.anim_loop = function() {
+        if(window.stop_animating)
+            return;
         requestAnimFrame(window.anim_loop);
 
         /*
