@@ -1,7 +1,8 @@
 html, body {
   margin: 0;
   padding: 0;
-  color: #000;
+  color: #FFF;
+  background: #00;
 }
 
 a {
@@ -22,7 +23,7 @@ a:hover, a:active {
 #header {
   margin-bottom: 10px;
   padding: 10px;
-  background: #9CC;
+  background: #355;
 }
 
 #game {
@@ -30,7 +31,7 @@ a:hover, a:active {
   margin-bottom: 10px;
   padding: 10px;
   width: 580px;
-  background: #9C9;
+  background: #353;
 }
 
 #msgbox {
@@ -39,7 +40,7 @@ a:hover, a:active {
   margin-bottom: 10px;
   padding: 10px;
   width: 170px;
-  background: #C9C;
+  background: #535;
 }
 
 #footer {
@@ -53,4 +54,20 @@ a:hover, a:active {
 #game-log {
   height: 300px;
   overflow-y: auto;
+}
+
+#game-log p {
+  font-family: monospace;
+}
+
+#game-log p.warn {
+  color: #FF6;
+}
+
+#game-log p.msg {
+  color: #66F;
+}
+
+#game-log p.error {
+  color: #F66;
 }

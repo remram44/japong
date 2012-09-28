@@ -2,10 +2,13 @@
 
 {% block content %}
 <div id="game">
-  <h2>Game here</h2>
+  <canvas id="game-canvas" width="500" height="400"></canvas>
 </div>
 
 <div id="msgbox">
+  <input type="hidden" id="my-nick" value="remram"/>
+  <input type="hidden" id="my-key" value="afd54c"/>
+  <input type="hidden" id="my-racket" value="0"/>
   <div id="game-log"></div>
   <div id="send-box">
     <p>
