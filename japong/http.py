@@ -61,8 +61,9 @@ class Http(object):
         self.hostname = host
         self._buffer = LineReader()
 
-        self.header_recvd = False
+        self.headers_recvd = False
         self.headers = dict()
+        self.method = None
         self.request_uri = None
 
     def received(self, data, sender=None):
@@ -112,7 +113,6 @@ class Http(object):
             raise
 
     def send_error(self, sender, status=500):
-        print "send_error 1 status=%r" % status
         descr = _HTTP_STATUSES.get(status)
         if descr:
             error = "%d %s" % (status, descr)
@@ -126,18 +126,29 @@ class Http(object):
                 "<hr><center>nginx/1.2.1</center>\n"
                 "</body>\n"
                 "</html>\n").format(error=error)
-        print "send_error 2 status=%r" % status
         self.send_page(content, sender, status)
 
-    def send_page(self, page, sender, status=200, mime='text/html'):
-        print "send_page status=%r" % status
+    def _send_headers(self, sender, status, mime):
         descr = _HTTP_STATUSES.get(status)
         if descr:
             descr = ' ' + descr
         sender("HTTP/1.1 %d%s\r\n" % (status, descr))
         sender("Host: %s\r\n" % self.hostname)
         sender("Content-type: %s\r\n" % mime)
-        sender("Content-length: %d\r\n" % len(page))
         sender("Connection: close\r\n")
         sender("\r\n")
+        
+    def send_page(self, page, sender, status=200, mime='text/html'):
+        self._send_headers(sender, status, mime)
         sender(page)
+
+    def send_file(self, file, sender, status=200, mime='text/html'):
+        self._send_headers(sender, status, mime)
+        buf = file.read(4096)
+        while buf:
+            sender(buf)
+            buf = file.read(4096)
+
+    def __repr__(self):
+        return "Http(method=%r, uri=%r, headers_recvd=%r)" % (
+               self.method, self.request_uri, self.headers_recvd)

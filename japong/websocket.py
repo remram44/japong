@@ -12,95 +12,64 @@ class MalformedWebSocket(ValueError):
 
 
 def setup_websocket(request):
-    if 'Upgrade' in request.META.get('HTTP_CONNECTION', None) and \
-        request.META.get('HTTP_UPGRADE', None).lower() == 'websocket':
+    if 'Upgrade' not in request.headers.get('Connection', '') or \
+            request.headers.get('Upgrade', '').lower() != 'websocket':
+        raise MalformedWebSocket
 
-        version = request.META.get('HTTP_SEC_WEBSOCKET_VERSION')
-        version_is_valid = False
-        if version:
-            try:
-                version = int(version)
-            except:
-                pass
-            else:
-                version_is_valid = version in WS_VERSION
+    version = request.headers.get('Sec-WebSocket-Version')
+    version_is_valid = False
+    if version:
+        try:
+            version = int(version)
+        except:
+            pass
+        else:
+            version_is_valid = version in WS_VERSION
 
-        if not version_is_valid:
-            raise MalformedWebSocket
+    if not version_is_valid:
+        raise MalformedWebSocket
 
-        # Compute the challenge response
-        key = request.META['HTTP_SEC_WEBSOCKET_KEY']
-        handshake_response = b64encode(sha1(key + WS_KEY).digest())
+    # Compute the challenge response
+    key = request.headers['Sec-WebSocket-Key']
+    handshake_response = b64encode(sha1(key + WS_KEY).digest())
 
-        # TODO : protocol negociation? Could be specified in the decorator...
-        protocols = request.META.get('HTTP_SEC_WEBSOCKET_PROTOCOL')
+    protocols = request.headers.get('Sec-WebSocket-Protocol')
 
-        # TODO : the 'Origin' field should be validated by application code
-        # (or configuration/per-view option)
+    handshake_reply = (
+            "HTTP/1.1 101 Switching Protocols\r\n"
+            "Upgrade: websocket\r\n"
+            "Connection: Upgrade\r\n")
+    handshake_reply += "Sec-WebSocket-Version: %s\r\n" % version
+    if protocols:
+        handshake_reply += "Sec-WebSocket-Protocol: %s\r\n" % protocols
+    handshake_reply += "Sec-WebSocket-Accept: %s\r\n" % handshake_response
+    handshake_reply += "\r\n"
 
-        handshake_reply = (
-                "HTTP/1.1 101 Switching Protocols\r\n"
-                "Upgrade: websocket\r\n"
-                "Connection: Upgrade\r\n")
-        handshake_reply += "Sec-WebSocket-Version: %s\r\n" % version
-        if protocols:
-            handshake_reply += "Sec-WebSocket-Protocol: %s\r\n" % protocols
-        handshake_reply += "Sec-WebSocket-Accept: %s\r\n" % handshake_response
-        handshake_reply += "\r\n"
-
-        # Here we want to make sure that Django doesn't handle this request
-        # anymore
-        #request.META['wsgi.input']._sock = None
-        socket = request.META['wsgi.input']._sock.dup()
-        # dup() is not portable because the folks writing Python forgot to
-        # backport it from 3.x to 2.7
-
-        return WebSocket(
-            socket,
-            handshake_reply,
-            protocols)
-    return None
+    return WebSocket(
+        handshake_reply,
+        protocols)
 
 
 DEFAULT_READING_SIZE = 2
 
 # This class was adapted from ws4py.websocket:WebSocket
-# Changes include:
-#  * process() inlined into _run, uses yield instead of received_message(),
-#     making it a generator
-#  * other callbacks removed
-#  * process() inlined into _run
-#  * added __iter__()
-#  * send_handshake() method
 class WebSocket(object):
-    def __init__(self, sock, handshake_reply, protocols=None):
+    def __init__(self, handshake_reply, protocols=None):
         self.stream = Stream(always_mask=False)
         self.handshake_reply = handshake_reply
         self.handshake_sent = False
         self.protocols = protocols
-        self.sock = sock
         self.client_terminated = False
         self.server_terminated = False
         self.reading_buffer_size = DEFAULT_READING_SIZE
-        self.sender = self.sock.sendall
 
+    def init(self, sender):
         # This was initially a loop that used callbacks in ws4py
         # Here it was turned into a generator, the callback replaced by yield
-        self.runner = self._run()
+        self.sender = sender
 
-    def send_handshake(self):
         self.sender(self.handshake_reply)
         self.handshake_sent = True
-
-    def wait(self):
-        """
-        Reads a message from the websocket, blocking and responding to wire
-        messages until one becomes available.
-        """
-        try:
-            return self.runner.next()
-        except StopIteration:
-            return None
 
     def send(self, payload, binary=False):
         """
@@ -135,16 +104,7 @@ class WebSocket(object):
         else:
             raise ValueError("Unsupported type '%s' passed to send()" % type(payload))
 
-    def _cleanup(self):
-        """
-        Frees up resources used by the endpoint.
-        """
-        self.sender = None
-        self.sock = None
-        self.stream._cleanup()
-        self.stream = None
-
-    def _run(self):
+    def dataReceived(self, data):
         """
         Performs the operation of reading from the underlying
         connection in order to feed the stream of bytes.
@@ -164,49 +124,36 @@ class WebSocket(object):
           we initiate the closing of the connection with the
           appropiate error code.
         """
-        self.sock.setblocking(True)
         s = self.stream
-        try:
-            sock = self.sock
+        
+        self.reading_buffer_size = s.parser.send(data) or DEFAULT_READING_SIZE
 
-            while not self.terminated:
-                bytes = sock.recv(self.reading_buffer_size)
-                if not bytes and self.reading_buffer_size > 0:
-                    break
+        if s.closing is not None:
+            if not self.server_terminated:
+                self.close(s.closing.code, s.closing.reason)
+            else:
+                self.client_terminated = True
+            return None
 
-                self.reading_buffer_size = s.parser.send(bytes) or DEFAULT_READING_SIZE
+        if s.errors:
+            for error in s.errors:
+                self.close(error.code, error.reason)
+            s.errors = []
+            return None
 
-                if s.closing is not None:
-                    if not self.server_terminated:
-                        self.close(s.closing.code, s.closing.reason)
-                    else:
-                        self.client_terminated = True
-                    break
+        if s.has_message:
+            msg = s.message
+            return msg
+            s.message = None
+        else:
+            if s.pings:
+                for ping in s.pings:
+                    self.sender(s.pong(ping.data))
+                s.pings = []
 
-                if s.errors:
-                    for error in s.errors:
-                        self.close(error.code, error.reason)
-                    s.errors = []
-                    break
-
-                if s.has_message:
-                    yield s.message
-                    s.message.data = None
-                    s.message = None
-                else:
-                    if s.pings:
-                        for ping in s.pings:
-                            self.sender(s.pong(ping.data))
-                        s.pings = []
-
-                    if s.pongs:
-                        s.pongs = []
-        finally:
-            self.client_terminated = self.server_terminated = True
-
-            s = sock = None
-            self.close_connection()
-            self._cleanup()
+            if s.pongs:
+                s.pongs = []
+        return None
 
     def close(self, code=1000, reason=''):
         """
@@ -225,16 +172,6 @@ class WebSocket(object):
         if not self.server_terminated:
             self.server_terminated = True
             self.sender(self.stream.close(code=code, reason=reason).single(mask=self.stream.always_mask))
-
-    def close_connection(self):
-        """
-        Shutdowns then closes the underlying connection.
-        """
-        try:
-            self.sock.shutdown(socket.SHUT_RDWR)
-            self.sock.close()
-        except:
-            pass
 
     @property
     def terminated(self):
