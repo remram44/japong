@@ -133,7 +133,8 @@ class Http(object):
         if descr:
             descr = ' ' + descr
         sender("HTTP/1.1 %d%s\r\n" % (status, descr))
-        sender("Host: %s\r\n" % self.hostname)
+        host = self.hostname or self.headers.get('Host', 'localhost')
+        sender("Host: %s\r\n" % host)
         sender("Content-type: %s\r\n" % mime)
         sender("Connection: close\r\n")
         sender("\r\n")

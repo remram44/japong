@@ -17,21 +17,26 @@ def main():
             action='count', dest='verbosity',
             help="increase program verbosity")
     optparser.add_option(
-            '-n', '--hostname',
-            action='store', dest='host',
+            '-l', '--hostname',
+            action='store', dest='hostname',
             help="hostname (or location) of this server")
     optparser.add_option(
+            '-i', '--interface',
+            action='store', dest='interface',
+            help="interface (IP address) to bind to")
+    optparser.add_option(
             '-p', '--port',
-            action='store', dest='port',
+            action='store', dest='port', type='int',
             help="port number on which to listen")
-    optparser.set_defaults(verbosity=1, host=None, port=8000)
+    optparser.set_defaults(verbosity=1, hostname=None, interface='',
+                           port=8000)
     (options, args) = optparser.parse_args()
     options = vars(options) # options is not a dict!?
 
     run(**options)
 
 
-def run(port, host, verbosity):
+def run(port, hostname, interface, verbosity):
     if verbosity == 0: # -q
         level = logging.CRITICAL
     elif verbosity == 1: # default
@@ -42,12 +47,19 @@ def run(port, host, verbosity):
         level = logging.DEBUG
     logging.basicConfig(level=level)
 
-    if not host:
-        host = "http://127.0.0.1"
-    if port != 80 and not ':' in host:
-        host += ":%d" % port
+    if hostname:
+        if not hostname.startswith('http://'):
+            hostname = 'http://%s' % (hostname,)
+        sep = hostname.find('/')
+        if sep != -1:
+            hostname = hostname[:sep]
+        if port != 80 and not ':' in hostname:
+            hostname = "http://%s:%d/" % (hostname, port)
+        else:
+            hostname = "http://%s/" % hostname
+        logging.info('Hostname set to %s' % hostname)
 
     pong = PongGame()
 
-    reactor.listenTCP(port, HttpFactory(host, pong))
+    reactor.listenTCP(port, HttpFactory(hostname, pong), interface=interface)
     reactor.run()

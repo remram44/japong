@@ -42,20 +42,22 @@ addEvent('load', window, function() {
     /*
      * Get server parameters.
      */
-    var nickname, key, localracket;
+    var nickname, key, localracket, connect_addr;
     (function() {
-        var el = document.getElementById('my-nick');
-        nickname = el.value;
-        el = document.getElementById('my-key');
-        key = el.value;
-        el = document.getElementById('my-racket');
-        localracket = el.value;
+        var read_param = function(param) {
+            var el = document.getElementById(param);
+            return el.value;
+        };
+        nickname = read_param('my-nick');
+        key = read_param('my-key');
+        localracket = read_param('my-racket');
+        connect_addr = read_param('my-server');
     })();
 
     /*
      * Connect and configure a websocket.
      */
-    var sock = new WebSocket('ws://127.0.0.1:8000/conn');
+    var sock = new WebSocket('ws://' + connect_addr + '/conn');
     sock.onopen = function() {
         sock.send('Key: ' + key);
         log('warn', "!! Connected");
