@@ -54,6 +54,10 @@ addEvent('load', window, function() {
         connect_addr = read_param('my-server');
     })();
 
+    var canvas = document.getElementById('game-canvas');
+    var width = canvas.width;
+    var height = canvas.height;
+
     /*
      * Connect and configure a websocket.
      */
@@ -61,6 +65,7 @@ addEvent('load', window, function() {
     sock.onopen = function() {
         sock.send('Key: ' + key);
         log('warn', "!! Connected");
+        anim_loop();
     };
     sock.onmessage = function(e) {
         window.log('msg', e.data);
@@ -72,6 +77,13 @@ addEvent('load', window, function() {
     sock.onerror = function(e) {
         window.log('error', "!! Error: " + e.data);
     };
+
+    var g = canvas.getContext('2d');
+    g.fillStyle = 'rgba(0, 0, 0, 1)';
+    g.fillRect(0, 0, width, height);
+    g.fillStyle = 'rgba(255, 255, 255, 1)';
+    g.textAlign = 'center';
+    g.fillText("Connecting...", width/2, height/2);
 
     /*
      * Chat setup.
@@ -94,9 +106,6 @@ addEvent('load', window, function() {
     /*
      * Game.
      */
-    var canvas = document.getElementById('game-canvas');
-    var width = canvas.width;
-    var height = canvas.height;
     var RAQ_WIDTH = 10, RAQ_HEIGHT = 60;
     var BALL_SIZE = 30;
     var RAQ_SPEED = 0.15, BALL_SPEED = 0.2;
@@ -158,7 +167,7 @@ addEvent('load', window, function() {
         }
     };
 
-    var timer = new Timer();
+    var timer;
 
     /*
      * Main loop.
@@ -168,6 +177,9 @@ addEvent('load', window, function() {
         if(window.stop_animating)
             return;
         requestAnimFrame(window.anim_loop);
+
+        if(timer == undefined)
+            timer = new Timer();
 
         /*
          * Physics!
@@ -231,5 +243,4 @@ addEvent('load', window, function() {
         g.fillStyle = 'rgba(0, 0, 127, 1)';
         g.fillRect(ball.x, ball.y, BALL_SIZE, BALL_SIZE);
     };
-    anim_loop();
 });
